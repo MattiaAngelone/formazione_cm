@@ -1,0 +1,66 @@
+---
+- name: Configura un container registry locale con Podman
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    registry_name: registry
+    registry_image: docker.io/library/registry
+    registry_tag: "2"
+    registry_port: 5000
+    registry_volume: registry_data
+
+  tasks:
+    - name: Scarica l'immagine del registry
+      containers.podman.podman_image:
+        name: "{{ registry_image }}"
+        tag: "{{ registry_tag }}"
+        state: present
+
+    - name: Crea il volume per i dati del registry
+      containers.podman.podman_volume:
+        name: "{{ registry_volume }}"
+        state: present
+
+    - name: Avvia il container del registry
+      containers.podman.podman_container:
+        name: "{{ registry_name }}"
+        image: "{{ registry_image }}:{{ registry_tag }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ registry_port }}:5000"
+        volumes:
+          - "{{ registry_volume }}:/var/lib/registry"
+
+    - name: Crea la directory dei drop-in di registries.conf
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/.config/containers/registries.conf.d"
+        state: directory
+        mode: "0755"
+
+    - name: Dichiara il registry locale come insecure (HTTP, senza TLS)
+      ansible.builtin.copy:
+        dest: "{{ lookup('env', 'HOME') }}/.config/containers/registries.conf.d/localhost-5000.conf"
+        mode: "0644"
+        content: |
+          [[registry]]
+          location = "localhost:{{ registry_port }}"
+          insecure = true
+
+    - name: Attendi che la Registry API v2 risponda
+      ansible.builtin.uri:
+        url: "http://localhost:{{ registry_port }}/v2/_catalog"
+        status_code: 200
+      register: registry_api
+      retries: 15
+      delay: 2
+      until: registry_api is succeeded
+      changed_when: false
+
+    - name: Mostra lo stato del registry
+      ansible.builtin.debug:
+        msg: >-
+          Registry attivo su localhost:{{ registry_port }} -
+          repository presenti: {{ registry_api.json.repositories | default([], true) }}
