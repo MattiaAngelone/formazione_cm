@@ -1,0 +1,31 @@
+FROM docker.io/library/ubuntu:24.04
+
+ARG SSH_USER=devops
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    	openssh-server sudo ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Directory di privilege separation + generazione delle host key
+RUN mkdir -p /run/sshd && ssh-keygen -A
+
+# Utente non privilegiato, gruppo sudo, sudo senza password
+RUN useradd --create-home --shell /bin/bash "${SSH_USER}" && \
+    usermod -aG sudo "${SSH_USER}" && \
+    echo "${SSH_USER} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/90-${SSH_USER}" && \
+    chmod 0440 "/etc/sudoers.d/90-${SSH_USER}"
+
+# Chiave pubblica autorizzata, con permessi corretti
+COPY authorized_keys /tmp/authorized_keys
+RUN install -d -m 0700 -o "${SSH_USER}" -g "${SSH_USER}" "/home/${SSH_USER}/.ssh" && \
+    install -m 0600 -o "${SSH_USER}" -g "${SSH_USER}" \
+        /tmp/authorized_keys "/home/${SSH_USER}/.ssh/authorized_keys" && \
+    rm /tmp/authorized_keys
+
+COPY sshd_hardening.conf /etc/ssh/sshd_config.d/10-formazione.conf
+
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D", "-e"]
+
