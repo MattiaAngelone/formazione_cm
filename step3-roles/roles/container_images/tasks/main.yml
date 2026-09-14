@@ -1,0 +1,42 @@
+---
+- name: Crea la directory di lavoro
+  ansible.builtin.file:
+    path: "{{ images_workdir }}"
+    state: directory
+    mode: "0755"
+
+- name: Crea la directory delle chiavi
+  ansible.builtin.file:
+    path: "{{ images_keydir }}"
+    state: directory
+    mode: "0700"
+
+- name: Genera la chiave SSH
+  ansible.builtin.command:
+    cmd: ssh-keygen -t ed25519 -N '' -f {{ images_keydir }}/id_{{ images_ssh_user }}
+    creates: "{{ images_keydir }}/id_{{ images_ssh_user }}"
+
+- name: Copia la chiave pubblica nel contesto
+  ansible.builtin.copy:
+    src: "{{ images_keydir }}/id_{{ images_ssh_user }}.pub"
+    dest: "{{ images_workdir }}/authorized_keys"
+    remote_src: true
+    mode: "0644"
+
+- name: Genera la configurazione sshd
+  ansible.builtin.template:
+    src: sshd_hardening.conf.j2
+    dest: "{{ images_workdir }}/sshd_hardening.conf"
+    mode: "0644"
+
+- name: Copia i Containerfile nel contesto
+  ansible.builtin.copy:
+    src: "{{ item.containerfile }}"
+    dest: "{{ images_workdir }}/{{ item.containerfile }}"
+    mode: "0644"
+  loop: "{{ images_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Carica i task del motore
+  ansible.builtin.include_tasks: "{{ container_engine }}.yml"

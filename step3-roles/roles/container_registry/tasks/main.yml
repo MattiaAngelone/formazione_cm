@@ -1,0 +1,15 @@
+---
+# tasks file for container_registry
+
+- name: Carica i task del motore
+  ansible.builtin.include_tasks: "{{ container_engine }}.yml"
+
+- name: Attendi che il registry risponda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ registry_port }}/v2/_catalog"
+    status_code: 200
+  register: registry_api
+  retries: 15
+  delay: 2
+  until: registry_api is succeeded
+  changed_when: false

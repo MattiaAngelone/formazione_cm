@@ -1,0 +1,8 @@
+---
+# defaults file for container_registry
+ 
+registry_name: registry
+registry_image: docker.io/library/registry
+registry_tag: "2"
+registry_port: 5000
+registry_volume: registry_data

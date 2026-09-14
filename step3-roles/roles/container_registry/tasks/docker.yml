@@ -1,0 +1,40 @@
+---
+- name: Dichiara il registry come insecure
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "insecure-registries": ["localhost:{{ registry_port }}"],
+        "dns": ["8.8.8.8", "1.1.1.1"]
+      }
+  become: true
+  register: daemon_conf
+
+- name: Riavvia docker se la configurazione è cambiata
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  become: true
+  when: daemon_conf.changed
+
+- name: Scarica l'immagine del registry
+  community.docker.docker_image_pull:
+    name: "{{ registry_image }}"
+    tag: "{{ registry_tag }}"
+
+- name: Crea il volume
+  community.docker.docker_volume:
+    name: "{{ registry_volume }}"
+    state: present
+
+- name: Avvia il registry
+  community.docker.docker_container:
+    name: "{{ registry_name }}"
+    image: "{{ registry_image }}:{{ registry_tag }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "127.0.0.1:{{ registry_port }}:5000"
+    volumes:
+      - "{{ registry_volume }}:/var/lib/registry"

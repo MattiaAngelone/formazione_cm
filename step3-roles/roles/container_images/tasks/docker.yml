@@ -1,0 +1,33 @@
+---
+- name: Build delle immagini
+  community.docker.docker_image_build:
+    name: "{{ images_registry }}/{{ item.name }}"
+    tag: "{{ images_tag }}"
+    path: "{{ images_workdir }}"
+    dockerfile: "{{ item.containerfile }}"
+    args:
+      SSH_USER: "{{ images_ssh_user }}"
+  loop: "{{ images_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Push delle immagini
+  community.docker.docker_image_push:
+    name: "{{ images_registry }}/{{ item.name }}"
+    tag: "{{ images_tag }}"
+  loop: "{{ images_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Avvia i container
+  community.docker.docker_container:
+    name: "{{ item.name }}"
+    image: "{{ images_registry }}/{{ item.name }}:{{ images_tag }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "127.0.0.1:{{ images_base_port | int + idx + 1 }}:22"
+  loop: "{{ images_list }}"
+  loop_control:
+    index_var: idx
+    label: "{{ item.name }}"

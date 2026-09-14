@@ -1,0 +1,37 @@
+---
+- name: Scarica l'immagine del registry
+  containers.podman.podman_image:
+    name: "{{ registry_image }}"
+    tag: "{{ registry_tag }}"
+    state: present
+
+- name: Crea il volume per i dati del registry
+  containers.podman.podman_volume:
+    name: "{{ registry_volume }}"
+    state: present
+
+- name: Avvia il container del registry
+  containers.podman.podman_container:
+    name: "{{ registry_name }}"
+    image: "{{ registry_image }}:{{ registry_tag }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "{{ registry_port }}:5000"
+    volumes:
+      - "{{ registry_volume }}:/var/lib/registry"
+
+- name: Crea la directory dei drop-in di registries.conf
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.config/containers/registries.conf.d"
+    state: directory
+    mode: "0755"
+
+- name: Dichiara il registry locale come insecure (HTTP, senza TLS)
+  ansible.builtin.copy:
+    dest: "{{ lookup('env', 'HOME') }}/.config/containers/registries.conf.d/localhost-5000.conf"
+    mode: "0644"
+    content: |
+      [[registry]]
+      location = "localhost:{{ registry_port }}"
+      insecure = true

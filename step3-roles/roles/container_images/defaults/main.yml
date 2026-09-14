@@ -1,0 +1,15 @@
+---
+# defaults file for container_images
+
+images_registry: "localhost:5000"
+images_tag: latest
+images_workdir: /tmp/container-build
+images_keydir: "{{ lookup('env', 'HOME') }}/.ssh/formazione_cm"
+images_ssh_user: devops
+images_base_port: 2200
+
+images_list:
+  - name: ssh-ubuntu
+    containerfile: Containerfile.ubuntu
+  - name: ssh-rocky
+    containerfile: Containerfile.rocky

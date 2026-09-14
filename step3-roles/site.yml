@@ -1,0 +1,10 @@
+---
+- name: Step 3 - registry e immagini tramite ruoli
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - container_engine
+    - container_registry
+    - container_images

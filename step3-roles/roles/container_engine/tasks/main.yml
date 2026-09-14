@@ -1,0 +1,22 @@
+---
+# tasks file for container_engine
+
+- name: Cerca podman
+  ansible.builtin.command: which podman
+  register: podman_check
+  failed_when: false
+  changed_when: false
+
+- name: Cerca docker
+  ansible.builtin.command: which docker
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: imposta il motore da usare
+  ansible.builtin.set_fact:
+    container_engine: "{{ 'podman' if podman_check.rc == 0 else 'docker' }}"
+
+- name: Motore selezionato
+  ansible.builtin.debug:
+    msg: "Uso {{container_engine }}"
