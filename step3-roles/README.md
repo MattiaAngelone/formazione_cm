@@ -1,5 +1,12 @@
 # Step 3 — Ruoli Ansible
 
+Utilizzando i precedenti Step come task, crea più ruoli Ansibile con le seguenti caratteristiche:
+- Creazione e configurazione di un registry 
+- Build di almeno due container 
+- Push delle build sul registry precedentemente creato
+- Run dei container in modo che non vadano in conflitto di porte tra loro
+- Creare uno o più ruoli che funzionino sia con Docker che con Podman 
+
 Gli Step 1 e 2 vengono organizzati in ruoli parametrizzati, utilizzabili con **Podman o Docker**. Il playbook crea un registry locale, costruisce e pubblica immagini Ubuntu e Rocky Linux, quindi avvia i container su porte distinte.
 
 ## Organizzazione
