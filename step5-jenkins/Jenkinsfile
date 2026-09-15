@@ -1,0 +1,43 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = 'registry:5000'
+        IMAGE    = 'webapp'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh """
+                    docker build \
+                      --build-arg BUILD_NUMBER=${env.BUILD_NUMBER} \
+                      -t ${REGISTRY}/${IMAGE}:${env.BUILD_NUMBER} \
+                      -t ${REGISTRY}/${IMAGE}:latest \
+                      step5-jenkins/app
+                """
+            }
+        }
+
+        stage('Push') {
+            steps {
+                sh """
+                    docker push ${REGISTRY}/${IMAGE}:${env.BUILD_NUMBER}
+                    docker push ${REGISTRY}/${IMAGE}:latest
+                """
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                ansiblePlaybook(
+                    playbook: 'step5-jenkins/deploy.yml',
+                    inventory: 'step5-jenkins/inventory.ini',
+                    credentialsId: 'dind-ssh-key',
+                    hostKeyChecking: false,
+                    extraVars: [build_number: "${env.BUILD_NUMBER}"]
+                )
+            }
+        }
+    }
+}

@@ -1,0 +1,23 @@
+---
+- name: Deploy dell'app sul container target
+  hosts: target
+  gather_facts: false
+  become: true
+
+  vars:
+    app_image: "registry:5000/webapp"
+
+  tasks:
+    - name: Pull dell'immagine dal registry
+      community.docker.docker_image_pull:
+        name: "{{ app_image }}"
+        tag: "{{ build_number }}"
+
+    - name: Avvia il container dell'app
+      community.docker.docker_container:
+        name: webapp
+        image: "{{ app_image }}:{{ build_number }}"
+        state: started
+        recreate: true
+        ports:
+          - "0.0.0.0:8081:80"
