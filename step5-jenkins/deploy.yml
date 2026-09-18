@@ -21,3 +21,5 @@
         recreate: true
         ports:
           - "0.0.0.0:8081:80"
+# Collega la porta 8081 del target alla porta 80 di webapp
+# 0.0.0.0 permette di ricevere traffico sulle interfacce del target

@@ -6,6 +6,11 @@ pipeline {
         IMAGE    = 'webapp'
     }
 
+
+// BUILD_NUMBER aumenta a ogni esecuzione di questo job
+// Lo passa al Dockerfile per mostrarlo nella pagina web
+// Assegna alla stessa immagine il tag numerico e il tag latest
+
     stages {
         stage('Build') {
             steps {
@@ -19,6 +24,9 @@ pipeline {
             }
         }
 
+
+// Pubblica entrambi i tag nel registry raggiungibile dal target
+
         stage('Push') {
             steps {
                 sh """
@@ -27,6 +35,11 @@ pipeline {
                 """
             }
         }
+
+
+// Il plugin Ansible esegue il playbook sugli host dell'inventario
+// Recupera la chiave SSH salvata delle credenziali Jenkins
+// Passa ad Ansible il tag preciso della build appena pubblicata
 
         stage('Deploy') {
             steps {

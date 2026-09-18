@@ -2,8 +2,10 @@
 
 set -e
 
-# sshd si mette in background da solo senza -D
+# Avvia il server SSH: si mette in background da solo senza -D
+# l'opzione -e invia i messaggi di log allo standard error
 /usr/sbin/sshd -e
 
-# dockerd diventa PID 1 e riceve i segnali
+# Sostituisce questa shell con lo script ufficiale che avvia docker
+# "$@" inoltra gli eventuali argomenti ricevuti dal container
 exec dockerd-entrypoint.sh "$@"
