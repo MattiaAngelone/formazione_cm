@@ -7,7 +7,8 @@
   vars:
     ssh_user: devops
     build_dir: "{{ playbook_dir }}"
-    key_file: "{{ playbook_dir }}/keys/id_{{ ssh_user }}"
+    key_dir: "{{ lookup('env', 'HOME') }}/.ssh/formazione_cm"
+    key_file: "{{ key_dir }}/id_{{ ssh_user }}"
     images:
       - name: ssh-ubuntu
         containerfile: Containerfile.ubuntu
@@ -19,7 +20,7 @@
   tasks:
     - name: Crea la directory delle chiavi
       ansible.builtin.file:
-        path: "{{ playbook_dir }}/keys"
+        path: "{{ key_dir }}"
         state: directory
         mode: "0700"
 
