@@ -1,0 +1,9 @@
+id_*
+*.key
+*.pem
+
+step2-build-container/keys/
+step2-build-container/authorized_keys
+step2_build_container/sshd_hardening.conf
+
+step5-jenkins/target/authorized_keys
