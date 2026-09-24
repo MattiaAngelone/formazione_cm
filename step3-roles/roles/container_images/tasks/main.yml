@@ -38,5 +38,24 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Raccogli i checksum dei file del contesto di build
+  ansible.builtin.stat:
+    path: "{{ images_workdir }}/{{ item }}"
+    checksum_algorithm: sha256
+  loop: >-
+    {{ ['authorized_keys', 'sshd_hardening.conf']
+       + (images_list | map(attribute='containerfile') | list) }}
+  register: ctx_stat
+
+- name: Calcola il tag dal contenuto del contesto
+  ansible.builtin.set_fact:
+    images_tag: >-
+      {{ ((ctx_stat.results | map(attribute='stat.checksum') | join)
+          | hash('sha1')) }}
+
+- name: Tag calcolato
+  ansible.builtin.debug:
+    msg: "Tag immagini: {{ images_tag }}"
+
 - name: Carica i task del motore
   ansible.builtin.include_tasks: "{{ container_engine }}.yml"
