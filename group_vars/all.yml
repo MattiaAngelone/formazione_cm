@@ -1,0 +1,11 @@
+---
+# registry
+registry_port: 5000
+images_registry: "localhost:5000"
+
+# Utente dei container
+images_ssh_user: devops
+images_keydir: "{{ lookup('env', 'HOME') }}/.ssh/formazione_cm"
+
+# Porte
+images_base_port: 2200
