@@ -5,10 +5,10 @@
   gather_facts: false
 
   vars:
-    ssh_user: devops
+    images_ssh_user: devops
     build_dir: "{{ playbook_dir }}"
     key_dir: "{{ lookup('env', 'HOME') }}/.ssh/formazione_cm"
-    key_file: "{{ key_dir }}/id_{{ ssh_user }}"
+    key_file: "{{ key_dir }}/id_{{ images_ssh_user }}"
     images:
       - name: ssh-ubuntu
         containerfile: Containerfile.ubuntu
@@ -28,7 +28,7 @@
       ansible.builtin.command:
         cmd: >-
           ssh-keygen -t ed25519 -N ''
-          -C "{{ ssh_user }}@formazione-cm"
+          -C "{{ images_ssh_user }}@formazione-cm"
           -f {{ key_file }}
         creates: "{{ key_file }}"
 
@@ -54,7 +54,7 @@
         build:
           file: "{{ build_dir }}/{{ item.containerfile }}"
           format: docker
-          extra_args: "--build-arg SSH_USER={{ ssh_user }}"
+          extra_args: "--build-arg SSH_USER={{ images_ssh_user }}"
       loop: "{{ images }}"
       loop_control:
         label: "{{ item.name }}"
@@ -73,7 +73,7 @@
 
     - name: Comandi di accesso
       ansible.builtin.debug:
-        msg: "ssh -i {{ key_file }} -p {{ item.host_port }} {{ ssh_user }}@localhost"
+        msg: "ssh -i {{ key_file }} -p {{ item.host_port }} {{ images_ssh_user }}@localhost"
       loop: "{{ images }}"
       loop_control:
         label: "{{ item.name }}"
