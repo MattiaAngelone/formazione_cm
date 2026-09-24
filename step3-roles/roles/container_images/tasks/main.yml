@@ -51,7 +51,7 @@
   ansible.builtin.set_fact:
     images_tag: >-
       {{ ((ctx_stat.results | map(attribute='stat.checksum') | join)
-          | hash('sha1')) }}
+          | hash('sha256')) }}
 
 - name: Tag calcolato
   ansible.builtin.debug:
