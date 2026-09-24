@@ -1,5 +1,5 @@
 # Usa nginx per servire la pagina web dell'esercizio
-FROM docker.io/library/nginx:alpine
+FROM docker.io/library/nginx:1.31.6-alpine
 
 # Riceve il numero di build da jenkins
 ARG BUILD_NUMBER=0

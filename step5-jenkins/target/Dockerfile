@@ -1,5 +1,5 @@
 # Base con docker incluso, per eseguire altri container dentro il target
-FROM docker.io/library/docker:dind
+FROM docker.io/library/docker:29.8.1-dind
 
 # Nome dell'utente per le connessioni SSH
 ARG SSH_USER=devops
