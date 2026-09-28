@@ -1,79 +1,114 @@
 # Step 2 — Build di container SSH con Ansible e Podman
 
-Playbook Ansible che automatizza la build di due container con OS differenti con queste caratteristiche:
+Playbook Ansible che automatizza la build di due container con OS differenti, con
+queste caratteristiche:
 
-- Essere sempre in ascolto sulla porta 22 del container.
-- Avere attivo il servizio ssh.
-- Avere un utente abilitato a collegarsi tramite ssh key e poter fare sudo.
+- Essere sempre in ascolto sulla porta 22 del container
+- Avere attivo il servizio ssh
+- Avere un utente abilitato a collegarsi tramite ssh key e poter fare sudo
 
-Ansible esegue le operazioni sulla macchina locale; Podman costruisce le immagini e gestisce i container.
+Ansible esegue le operazioni sulla macchina locale; Podman costruisce le immagini
+e gestisce i container.
 
 | Sistema | Immagine | Container | Porta host → container |
-| --- | --- | --- | --- |
-| Ubuntu 24.04 | `ssh-ubuntu:latest` | `ssh-ubuntu` | `2201 → 22` |
-| Rocky Linux 9 | `ssh-rocky:latest` | `ssh-rocky` | `2202 → 22` |
+|---|---|---|---|
+| Ubuntu 24.04 | `ssh-ubuntu:<hash>` | `ssh-ubuntu` | `127.0.0.1:2201 → 22` |
+| Rocky Linux 9 | `ssh-rocky:<hash>` | `ssh-rocky` | `127.0.0.1:2202 → 22` |
+
+Il tag non è fisso: è calcolato dal contenuto del contesto di build, come spiegato
+sotto.
+
+---
 
 ## Logica del playbook
 
-Il file `step2-container-build/build-playbook.yml` svolge queste operazioni:
+`step2-build-container/build-playbook.yml` svolge cinque operazioni in ordine.
 
-1. **Prepara le chiavi SSH.** Crea la cartella `keys/` e genera una coppia di chiavi Ed25519. Il parametro `creates` evita di rigenerarle se la chiave privata esiste già.
-2. **Prepara i file per la build.** Copia la chiave pubblica in `authorized_keys` e genera `sshd_hardening.conf` dal template `sshd_hardening.conf.j2`. La variabile `ssh_user`, impostata a `devops`, definisce l’utente autorizzato.
-3. **Costruisce le immagini.** Un ciclo sulla lista `images` richiama `containers.podman.podman_image` per entrambi i Containerfile. I file generati sono condivisi nello stesso contesto di build; il nome utente viene passato tramite `SSH_USER`.
-4. **Avvia i container.** Un secondo ciclo usa `containers.podman.podman_container` per portarli nello stato `started` e pubblicare le porte indicate nella tabella.
+**1. Prepara le chiavi SSH.** Genera una coppia Ed25519 in
+`~/.ssh/formazione_cm/`, fuori dall'albero versionato. Il parametro `creates`
+rende idempotente un comando che di suo non lo è: se la chiave esiste, il task
+viene saltato.
+
+**2. Prepara il contesto di build.** Copia la chiave pubblica come
+`authorized_keys` e rende `sshd_hardening.conf` dal template `.j2`, sostituendo
+il nome utente.
+
+**3. Calcola il tag dal contenuto.** Prende il checksum di ogni file del contesto
+— i due Containerfile, `authorized_keys`, `sshd_hardening.conf` — e li riduce a
+un'unica impronta, che diventa il tag delle immagini.
+
+**4. Costruisce le immagini.** Un ciclo sulla lista `images` richiama
+`containers.podman.podman_image` per entrambi i Containerfile, i file generati sono condivisi nello stesso contesto di build; il nome utente viene passato tramite SSH_USER.
+
+**5. Avvia i container.** Un secondo ciclo usa
+`containers.podman.podman_container` per portarli nello stato `started` e
+pubblicare le porte sul loopback.
+
+---
+
+## Il tag calcolato dal contenuto
+
+Con un tag fisso come `latest`, il nome dell'immagine non cambia mai. Ansible
+guarda solo quel nome, quindi con una chiave nuova sul disco, container che gira ancora con quella vecchia.
+
+Con il tag derivato dal contenuto, l'impronta cambia insieme ai file, e se non cambia nulla, l'impronta è identica e il playbook resta a `changed=0`.
+
+In questo modo l'idempotenza diventa corretta. Prima riportava "nulla è
+cambiato" anche quando qualcosa era cambiato.
+
+---
 
 ## Funzionamento dei container
 
-`Containerfile.ubuntu` e `Containerfile.rocky` installano OpenSSH e sudo, creano l’utente `devops` e gli consentono di usare **sudo senza password**.
+`Containerfile.ubuntu` e `Containerfile.rocky` installano OpenSSH e sudo, creano
+l'utente `devops` e gli consentono `sudo` **senza password**.
 
-La chiave pubblica viene installata nella sua cartella `.ssh` con i permessi corretti; la chiave privata rimane sull’host.
+La chiave pubblica viene installata in `.ssh/authorized_keys`
 
-La configurazione SSH permette l’accesso con chiave pubblica all’utente previsto e disabilita l’accesso diretto come root e l’autenticazione tramite password. Le chiavi host del server SSH vengono generate durante la build con `ssh-keygen -A`.
+La configurazione SSH permette l’accesso con chiave pubblica all’utente previsto e disabilita l’accesso diretto come root e l’autenticazione tramite password. Le chiavi host del server SSH vengono generate durante la build con ssh-keygen -A
 
-All’avvio viene eseguito:
+all'avvio viene eseguito:
 
-```bash
+```
 /usr/sbin/sshd -D -e
 ```
 
-- `-D` mantiene SSH in primo piano, lasciando il container in esecuzione.
-- `-e` invia i log allo standard error, consultabile con `podman logs`.
+- `-D` mantiene sshd in primo piano: se si mettesse in background il container si
+  chiuderebbe subito, perché per Podman il processo principale sarebbe finito
+- `-e` invia i log su standard error, consultabile con `podman logs`
 
-Il server ascolta sulla porta **22 interna**; la mappatura di Podman lo rende raggiungibile sulle porte host **2201 e 2202**. `EXPOSE 22` descrive la porta dell’immagine, ma non la pubblica da solo.
+---
 
-## Esecuzione e aggiornamento
+## Esecuzione
 
 Servono Ansible, Podman e la collection `containers.podman`.
 
-```bash
-ansible-playbook step2-container-build/build-playbook.yml
-```
-
-Le esecuzioni successive riutilizzano chiavi e immagini già presenti. Per applicare modifiche ai Containerfile o ai file copiati nelle immagini, forzare la ricostruzione:
+Dalla radice della repo, così `ansible.cfg` viene letto:
 
 ```bash
-ansible-playbook step2-container-build/build-playbook.yml -e rebuild=true
+ansible-playbook step2-build-container/build-playbook.yml
 ```
+
+Alla seconda esecuzione: `changed=0`.
+
+Non serve forzare nulla. Modificando un Containerfile, la configurazione sshd o
+la chiave SSH, il tag cambia e build e ricreazione dei container partono da sole.
+
+---
 
 ## Verifica
 
-Collegarsi a Ubuntu dalla macchina host:
-
 ```bash
-ssh -i step2-container-build/keys/id_devops -p 2201 devops@localhost
+podman ps
 ```
 
-Per Rocky Linux:
+La colonna IMAGE mostra il tag corrente.
 
 ```bash
-ssh -i step2-container-build/keys/id_devops -p 2202 devops@localhost
+ssh -i ~/.ssh/formazione_cm/id_devops -p 2201 \
+    -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+    devops@127.0.0.1
 ```
 
-Dentro ciascun container:
-
-```bash
-sudo whoami
-cat /etc/os-release
-```
-
-Il primo comando deve restituire `root`; il secondo mostra la distribuzione.
+Per Rocky, porta `2202`. Dentro il container, `sudo whoami` deve restituire
+`root` e `cat /etc/os-release` confermare la distribuzione.
